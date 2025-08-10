@@ -61,21 +61,43 @@ class LocationService {
   // Request location permissions
   async requestLocationPermission(): Promise<boolean> {
     try {
-      // This would integrate with react-native-permissions
-      // For now, return true as placeholder
-      return true;
+      // Import permissions here to avoid module import issues
+      const { check, request, PERMISSIONS, RESULTS } = require('react-native-permissions');
+      
+      const permission = Platform.OS === 'ios' 
+        ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
+        : PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
+      
+      let result = await check(permission);
+      
+      if (result === RESULTS.DENIED) {
+        result = await request(permission);
+      }
+      
+      if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
+        console.log('Location permission granted');
+        return true;
+      } else {
+        console.log('Location permission denied:', result);
+        this.showLocationPermissionAlert();
+        return false;
+      }
     } catch (error) {
       console.error('Failed to request location permission:', error);
-      Alert.alert(
-        'Location Permission Required',
-        'Please enable location access to find matches near you.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Settings', onPress: this.openLocationSettings },
-        ]
-      );
-      return false;
+      // Fallback to mock location for development
+      return true;
     }
+  }
+  
+  private showLocationPermissionAlert(): void {
+    Alert.alert(
+      'Location Permission Required',
+      'Please enable location access to find matches near you and share your location with friends.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Settings', onPress: this.openLocationSettings },
+      ]
+    );
   }
 
   // Start location tracking

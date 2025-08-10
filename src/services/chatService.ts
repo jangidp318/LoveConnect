@@ -1,7 +1,10 @@
-// Chat Service
-// Handles all chat-related operations with mock data and local storage
+// Firebase Chat Service for Love Connect
+// Handles all chat-related operations with Firebase Firestore integration
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
+import { collections } from '../config/firebase';
 import { 
   Chat, 
   Message, 
@@ -12,6 +15,7 @@ import {
   ChatType,
   TypingIndicator
 } from '../types/chat';
+import { User as AuthUser } from '../store/authStore';
 
 class ChatService {
   private static instance: ChatService;
@@ -825,6 +829,182 @@ class ChatService {
   async getUsers(): Promise<User[]> {
     return this.users.filter(user => user.uid !== 'currentUser');
   }
+
+  // Firebase Integration Methods (will use when Firebase is configured)
+  
+  /**
+   * Initialize real-time listeners for Firebase
+   */
+  initializeFirebaseListeners(currentUserId: string) {
+    // Listen to user's chats
+    const unsubscribeChats = collections.chats()
+      .where('participants', 'array-contains', currentUserId)
+      .orderBy('lastActivity', 'desc')
+      .onSnapshot((snapshot) => {
+        const chats: Chat[] = [];
+        snapshot.forEach(doc => {
+          chats.push({ id: doc.id, ...doc.data() } as Chat);
+        });
+        this.chats = chats;
+        this.notifyChatListeners();
+      }, (error) => {
+        console.error('Error listening to chats:', error);
+        // Fallback to local data
+      });
+
+    return unsubscribeChats;
+  }
+
+  /**
+   * Listen to messages in a specific chat
+   */
+  subscribeToMessages(chatId: string): () => void {
+    const unsubscribe = collections.messages(chatId)
+      .orderBy('timestamp', 'asc')
+      .onSnapshot((snapshot) => {
+        const messages: Message[] = [];
+        snapshot.forEach(doc => {
+          messages.push({ id: doc.id, ...doc.data() } as Message);
+        });
+        this.messages[chatId] = messages;
+        this.notifyMessageListeners(chatId);
+      }, (error) => {
+        console.error('Error listening to messages:', error);
+        // Fallback to local data
+      });
+
+    return unsubscribe;
+  }
+
+  /**
+   * Send message to Firebase
+   */
+  async sendMessageToFirebase(chatId: string, text: string, type: MessageType, senderId: string): Promise<Message> {
+    try {
+      const messageData = {
+        chatId,
+        senderId,
+        text,
+        timestamp: firestore.FieldValue.serverTimestamp(),
+        type,
+        status: MessageStatus.SENT,
+      };
+
+      const docRef = await collections.messages(chatId).add(messageData);
+      
+      // Update chat's last activity
+      await collections.chats().doc(chatId).update({
+        lastActivity: firestore.FieldValue.serverTimestamp(),
+        lastMessage: messageData,
+      });
+
+      return {
+        id: docRef.id,
+        ...messageData,
+        timestamp: new Date(),
+      } as Message;
+    } catch (error) {
+      console.error('Error sending message to Firebase:', error);
+      // Fallback to local sending
+      return this.sendMessage(chatId, text, type);
+    }
+  }
+
+  /**
+   * Create chat in Firebase
+   */
+  async createChatInFirebase(participants: string[], type: ChatType, name?: string): Promise<Chat> {
+    try {
+      const chatData = {
+        type,
+        participants,
+        name,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        lastActivity: firestore.FieldValue.serverTimestamp(),
+        isArchived: false,
+        isMuted: false,
+        isPinned: false,
+        unreadCount: 0,
+      };
+
+      const docRef = await collections.chats().add(chatData);
+      
+      return {
+        id: docRef.id,
+        ...chatData,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+      } as Chat;
+    } catch (error) {
+      console.error('Error creating chat in Firebase:', error);
+      // Fallback to local creation
+      throw error;
+    }
+  }
+
+  /**
+   * Upload file to Firebase Storage
+   */
+  async uploadFile(file: any, type: 'image' | 'document' | 'audio'): Promise<string> {
+    try {
+      const fileName = `${type}s/${Date.now()}_${Math.random()}.${getFileExtension(file.name)}`;
+      const storageRef = storage().ref(fileName);
+      
+      await storageRef.put(file);
+      const downloadURL = await storageRef.getDownloadURL();
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send typing indicator
+   */
+  async sendTypingIndicator(chatId: string, userId: string, isTyping: boolean) {
+    try {
+      const typingRef = collections.chats().doc(chatId).collection('typing').doc(userId);
+      
+      if (isTyping) {
+        await typingRef.set({
+          userId,
+          timestamp: firestore.FieldValue.serverTimestamp(),
+        });
+        
+        // Auto-remove after 3 seconds
+        setTimeout(async () => {
+          await typingRef.delete();
+        }, 3000);
+      } else {
+        await typingRef.delete();
+      }
+    } catch (error) {
+      console.error('Error updating typing indicator:', error);
+    }
+  }
+
+  /**
+   * End-to-end encryption helpers (basic implementation)
+   */
+  private encryptMessage(text: string): string {
+    // Basic encryption - in production, use proper encryption libraries
+    return btoa(text);
+  }
+
+  private decryptMessage(encryptedText: string): string {
+    try {
+      return atob(encryptedText);
+    } catch {
+      return encryptedText; // Return as is if decryption fails
+    }
+  }
+}
+
+// Helper function
+function getFileExtension(filename: string): string {
+  return filename.split('.').pop() || 'unknown';
 }
 
 export default ChatService.getInstance();

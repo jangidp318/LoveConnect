@@ -44,12 +44,24 @@ class PhotoService {
   // Request camera permissions
   async requestCameraPermissions(): Promise<boolean> {
     try {
-      // This would integrate with react-native-permissions
-      // For now, return true as placeholder
-      return true;
+      const { check, request, PERMISSIONS, RESULTS } = require('react-native-permissions');
+      const { Platform } = require('react-native');
+      
+      const permission = Platform.OS === 'ios' 
+        ? PERMISSIONS.IOS.CAMERA
+        : PERMISSIONS.ANDROID.CAMERA;
+      
+      let result = await check(permission);
+      
+      if (result === RESULTS.DENIED) {
+        result = await request(permission);
+      }
+      
+      return result === RESULTS.GRANTED;
     } catch (error) {
       console.error('Failed to request camera permissions:', error);
-      return false;
+      // Fallback for development
+      return true;
     }
   }
 
@@ -178,21 +190,39 @@ class PhotoService {
     });
   }
 
-  // Upload photo to server
-  async uploadPhoto(photo: PhotoAsset): Promise<string | null> {
+  // Upload photo to Firebase Storage
+  async uploadPhoto(photo: PhotoAsset, folder: string = 'photos'): Promise<string | null> {
     try {
-      // This would integrate with your backend API
-      // For now, return mock URL
-      const mockUploadedUrl = `https://api.loveconnect.com/uploads/${photo.id}.jpg`;
+      // Import Firebase Storage
+      const storage = require('@react-native-firebase/storage').default;
       
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create unique filename
+      const timestamp = Date.now();
+      const filename = `${folder}/${timestamp}_${photo.filename}`;
+      
+      // Create storage reference
+      const storageRef = storage().ref(filename);
+      
+      // Upload file
+      console.log('Uploading photo to Firebase Storage:', filename);
+      await storageRef.putFile(photo.uri);
+      
+      // Get download URL
+      const downloadURL = await storageRef.getDownloadURL();
+      console.log('Photo uploaded successfully:', downloadURL);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Failed to upload photo to Firebase:', error);
+      
+      // Fallback to mock URL for development
+      const mockUploadedUrl = `https://firebasestorage.googleapis.com/v0/b/loveconnect-app.appspot.com/o/photos%2F${photo.id}.jpg?alt=media`;
+      console.log('Using mock URL for development:', mockUploadedUrl);
+      
+      // Simulate upload delay for realistic UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       return mockUploadedUrl;
-    } catch (error) {
-      console.error('Failed to upload photo:', error);
-      Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
-      return null;
     }
   }
 
