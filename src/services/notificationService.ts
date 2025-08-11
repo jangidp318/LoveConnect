@@ -1,6 +1,8 @@
 // Notification Service
 // Handle push notifications, in-app notifications, and notification preferences
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export interface Notification {
   id: string;
   type: 'match' | 'message' | 'like' | 'super_like' | 'call' | 'system';
@@ -204,11 +206,15 @@ class NotificationService {
 
   private async loadNotifications(): Promise<void> {
     try {
-      // Load from AsyncStorage or similar
-      // const stored = await AsyncStorage.getItem('love_connect_notifications');
-      // if (stored) {
-      //   this.notifications = JSON.parse(stored);
-      // }
+      const stored = await AsyncStorage.getItem('love_connect_notifications');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Convert dates back to Date objects
+        this.notifications = parsed.map((notification: any) => ({
+          ...notification,
+          timestamp: new Date(notification.timestamp),
+        }));
+      }
     } catch (error) {
       console.error('Failed to load notifications:', error);
     }
@@ -216,8 +222,7 @@ class NotificationService {
 
   private async saveNotifications(): Promise<void> {
     try {
-      // Save to AsyncStorage or similar
-      // await AsyncStorage.setItem('love_connect_notifications', JSON.stringify(this.notifications));
+      await AsyncStorage.setItem('love_connect_notifications', JSON.stringify(this.notifications));
     } catch (error) {
       console.error('Failed to save notifications:', error);
     }
@@ -225,11 +230,10 @@ class NotificationService {
 
   private async loadPreferences(): Promise<void> {
     try {
-      // Load from AsyncStorage or similar
-      // const stored = await AsyncStorage.getItem('love_connect_notification_preferences');
-      // if (stored) {
-      //   this.preferences = { ...this.preferences, ...JSON.parse(stored) };
-      // }
+      const stored = await AsyncStorage.getItem('love_connect_notification_preferences');
+      if (stored) {
+        this.preferences = { ...this.preferences, ...JSON.parse(stored) };
+      }
     } catch (error) {
       console.error('Failed to load notification preferences:', error);
     }
@@ -237,8 +241,7 @@ class NotificationService {
 
   private async savePreferences(): Promise<void> {
     try {
-      // Save to AsyncStorage or similar
-      // await AsyncStorage.setItem('love_connect_notification_preferences', JSON.stringify(this.preferences));
+      await AsyncStorage.setItem('love_connect_notification_preferences', JSON.stringify(this.preferences));
     } catch (error) {
       console.error('Failed to save notification preferences:', error);
     }

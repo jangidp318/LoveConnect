@@ -15,6 +15,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from '../../components/icons/IconRegistry';
 import { useTheme } from '../../store/themeStore';
 import hapticService from '../../services/hapticService';
+import { matchesService, UserProfile as MatchUserProfile } from '../../services/matchesService';
+import { pushNotificationService } from '../../services/pushNotificationService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CARD_WIDTH = screenWidth * 0.85;
@@ -328,27 +330,58 @@ const DiscoveryScreen: React.FC = () => {
 
   useEffect(() => {
     setProfiles(mockProfiles);
+    // Initialize services
+    initializeServices();
   }, []);
 
-  const handleSwipeLeft = (profile: UserProfile) => {
+  const initializeServices = async () => {
+    await matchesService.initialize();
+    await pushNotificationService.initialize();
+  };
+
+  const handleSwipeLeft = async (profile: UserProfile) => {
     console.log('Passed on:', profile.name);
+    
+    // Process the swipe with matchesService
+    const result = await matchesService.processSwipe('current_user_id', profile.id, 'pass');
+    
     setCurrentIndex(prev => prev + 1);
-    // Here you would typically send a "pass" action to your backend
   };
 
-  const handleSwipeRight = (profile: UserProfile) => {
+  const handleSwipeRight = async (profile: UserProfile) => {
     console.log('Liked:', profile.name);
-    hapticService.match();
-    Alert.alert('It\'s a Match! 💕', `You and ${profile.name} liked each other!`);
+    
+    // Process the swipe with matchesService
+    const result = await matchesService.processSwipe('current_user_id', profile.id, 'like');
+    
+    if (result.isMatch) {
+      hapticService.match();
+      Alert.alert('It\'s a Match! 💕', `You and ${profile.name} liked each other!`);
+      
+      // Send push notification for the match
+      await pushNotificationService.sendMatchNotification(profile.name, profile.photos[0]);
+    }
+    
     setCurrentIndex(prev => prev + 1);
-    // Here you would typically send a "like" action to your backend
   };
 
-  const handleSwipeUp = (profile: UserProfile) => {
+  const handleSwipeUp = async (profile: UserProfile) => {
     console.log('Super liked:', profile.name);
-    Alert.alert('Super Like! ⭐', `You super liked ${profile.name}!`);
+    
+    // Process the swipe with matchesService
+    const result = await matchesService.processSwipe('current_user_id', profile.id, 'super_like');
+    
+    if (result.isMatch) {
+      hapticService.match();
+      Alert.alert('It\'s a Match! 💕', `You and ${profile.name} super liked each other!`);
+      
+      // Send push notification for the match
+      await pushNotificationService.sendMatchNotification(profile.name, profile.photos[0]);
+    } else {
+      Alert.alert('Super Like! ⭐', `You super liked ${profile.name}!`);
+    }
+    
     setCurrentIndex(prev => prev + 1);
-    // Here you would typically send a "super like" action to your backend
   };
 
   const handleButtonAction = (action: 'pass' | 'like' | 'superlike') => {
