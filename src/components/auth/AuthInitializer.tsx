@@ -12,15 +12,35 @@ interface AuthInitializerProps {
 
 const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) => {
   const { theme } = useTheme();
-  const { isLoading, initializeAuth } = useAuth();
+  const { isLoading, initializeAuth, setLoading } = useAuth();
 
   useEffect(() => {
+    console.log('AuthInitializer: Starting auth initialization...');
+    
+    // Set a timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      console.warn('AuthInitializer: Auth initialization timed out, continuing...');
+      setLoading(false);
+    }, 5000); // 5 second timeout
+    
     // Initialize authentication when app starts
-    initializeAuth();
+    initializeAuth().then(() => {
+      console.log('AuthInitializer: Auth initialization completed');
+      clearTimeout(timeout);
+    }).catch((error) => {
+      console.error('AuthInitializer: Auth initialization failed:', error);
+      setLoading(false);
+      clearTimeout(timeout);
+    });
+    
+    return () => {
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Show loading screen while initializing auth
   if (isLoading) {
+    console.log('AuthInitializer: Showing loading screen');
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator 

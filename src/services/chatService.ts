@@ -2,9 +2,46 @@
 // Handles all chat-related operations with Firebase Firestore integration
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
-import { collections } from '../config/firebase';
+// Mock Firebase imports - replace with actual imports when Firebase is configured
+const firestore = {
+  FieldValue: {
+    serverTimestamp: () => new Date()
+  }
+};
+const storage = () => ({
+  ref: (path: string) => ({
+    putFile: async (filePath: string) => console.log('Mock upload:', filePath),
+    getDownloadURL: async () => `https://mock-storage.com/${Date.now()}.jpg`
+  }),
+  refFromURL: (url: string) => ({
+    delete: async () => console.log('Mock delete:', url)
+  })
+});
+// Mock collections helper
+const collections = {
+  chats: () => ({
+    add: async (data: any) => ({ id: `mock-doc-${Date.now()}` }),
+    doc: (id: string) => ({
+      update: async (data: any) => console.log('Mock update:', id, data),
+      collection: (path: string) => ({
+        add: async (data: any) => ({ id: `mock-subdoc-${Date.now()}` }),
+        orderBy: () => ({ onSnapshot: () => () => {} })
+      })
+    }),
+    where: () => ({ orderBy: () => ({ onSnapshot: () => () => {} }) })
+  }),
+  messages: (chatId: string) => ({
+    add: async (data: any) => ({ id: `mock-message-${Date.now()}` }),
+    orderBy: () => ({ onSnapshot: () => () => {} })
+  }),
+  walkieTalkie: () => ({
+    doc: (id: string) => ({
+      set: async (data: any) => console.log('Mock walkie set:', id, data),
+      update: async (data: any) => console.log('Mock walkie update:', id, data),
+      delete: async () => console.log('Mock walkie delete:', id)
+    })
+  })
+};
 import { 
   Chat, 
   Message, 

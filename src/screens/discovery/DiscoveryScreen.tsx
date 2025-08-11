@@ -14,6 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/icons/IconRegistry';
 import { useTheme } from '../../store/themeStore';
+import hapticService from '../../services/hapticService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CARD_WIDTH = screenWidth * 0.85;
@@ -69,6 +70,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
         if (gestureState.dx > SWIPE_THRESHOLD) {
           // Swipe right (like)
+          hapticService.like();
           Animated.timing(pan, {
             toValue: { x: screenWidth + 100, y: gestureState.dy },
             duration: 300,
@@ -76,6 +78,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
           }).start(() => onSwipeRight(profile));
         } else if (gestureState.dx < -SWIPE_THRESHOLD) {
           // Swipe left (pass)
+          hapticService.pass();
           Animated.timing(pan, {
             toValue: { x: -screenWidth - 100, y: gestureState.dy },
             duration: 300,
@@ -83,6 +86,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
           }).start(() => onSwipeLeft(profile));
         } else if (gestureState.dy < -SWIPE_THRESHOLD) {
           // Swipe up (super like)
+          hapticService.superLike();
           Animated.timing(pan, {
             toValue: { x: gestureState.dx, y: -screenHeight - 100 },
             duration: 300,
@@ -334,6 +338,7 @@ const DiscoveryScreen: React.FC = () => {
 
   const handleSwipeRight = (profile: UserProfile) => {
     console.log('Liked:', profile.name);
+    hapticService.match();
     Alert.alert('It\'s a Match! 💕', `You and ${profile.name} liked each other!`);
     setCurrentIndex(prev => prev + 1);
     // Here you would typically send a "like" action to your backend
@@ -349,6 +354,9 @@ const DiscoveryScreen: React.FC = () => {
   const handleButtonAction = (action: 'pass' | 'like' | 'superlike') => {
     const currentProfile = profiles[currentIndex];
     if (!currentProfile) return;
+
+    // Add button press haptic feedback
+    hapticService.buttonPress();
 
     switch (action) {
       case 'pass':

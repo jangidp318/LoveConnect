@@ -193,36 +193,23 @@ class PhotoService {
   // Upload photo to Firebase Storage
   async uploadPhoto(photo: PhotoAsset, folder: string = 'photos'): Promise<string | null> {
     try {
-      // Import Firebase Storage
-      const storage = require('@react-native-firebase/storage').default;
+      // Mock Firebase Storage upload for development
+      console.log('Mock uploading photo:', photo.filename);
       
-      // Create unique filename
+      // Create mock download URL
       const timestamp = Date.now();
       const filename = `${folder}/${timestamp}_${photo.filename}`;
+      const mockUploadedUrl = `https://mock-storage.com/${filename}`;
       
-      // Create storage reference
-      const storageRef = storage().ref(filename);
-      
-      // Upload file
-      console.log('Uploading photo to Firebase Storage:', filename);
-      await storageRef.putFile(photo.uri);
-      
-      // Get download URL
-      const downloadURL = await storageRef.getDownloadURL();
-      console.log('Photo uploaded successfully:', downloadURL);
-      
-      return downloadURL;
-    } catch (error) {
-      console.error('Failed to upload photo to Firebase:', error);
-      
-      // Fallback to mock URL for development
-      const mockUploadedUrl = `https://firebasestorage.googleapis.com/v0/b/loveconnect-app.appspot.com/o/photos%2F${photo.id}.jpg?alt=media`;
-      console.log('Using mock URL for development:', mockUploadedUrl);
+      console.log('Mock photo uploaded successfully:', mockUploadedUrl);
       
       // Simulate upload delay for realistic UX
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       return mockUploadedUrl;
+    } catch (error) {
+      console.error('Failed to upload photo:', error);
+      return null;
     }
   }
 

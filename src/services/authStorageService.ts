@@ -2,7 +2,8 @@
 // Secure storage for user authentication data
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Keychain from 'react-native-keychain';
+// Temporarily using AsyncStorage instead of Keychain for development
+// import * as Keychain from 'react-native-keychain';
 
 export interface UserCredentials {
   username: string;
@@ -35,35 +36,28 @@ class AuthStorageService {
   private readonly KEYCHAIN_USERNAME = 'user_credentials';
   private readonly SESSION_KEY = '@LoveConnect:userSession';
   private readonly REMEMBER_ME_KEY = '@LoveConnect:rememberMe';
+  private readonly CREDENTIALS_KEY = '@LoveConnect:credentials';
 
-  // Store user credentials securely in Keychain
+  // Store user credentials securely (using AsyncStorage for development)
   async storeCredentials(credentials: UserCredentials): Promise<void> {
     try {
-      await Keychain.setInternetCredentials(
-        this.KEYCHAIN_SERVICE,
-        credentials.username,
-        credentials.password,
-        {
-          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
-          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        }
-      );
+      // For development, use AsyncStorage instead of Keychain
+      console.log('Mock: Storing credentials to AsyncStorage for development');
+      await AsyncStorage.setItem(this.CREDENTIALS_KEY, JSON.stringify(credentials));
     } catch (error) {
       console.error('Error storing credentials:', error);
       throw new Error('Failed to store credentials securely');
     }
   }
 
-  // Retrieve user credentials from Keychain
+  // Retrieve user credentials (using AsyncStorage for development)
   async getCredentials(): Promise<UserCredentials | null> {
     try {
-      const credentials = await Keychain.getInternetCredentials(this.KEYCHAIN_SERVICE);
+      console.log('Mock: Getting credentials from AsyncStorage for development');
+      const credentialsData = await AsyncStorage.getItem(this.CREDENTIALS_KEY);
       
-      if (credentials) {
-        return {
-          username: credentials.username,
-          password: credentials.password,
-        };
+      if (credentialsData) {
+        return JSON.parse(credentialsData) as UserCredentials;
       }
       
       return null;
@@ -76,7 +70,8 @@ class AuthStorageService {
   // Clear stored credentials
   async clearCredentials(): Promise<void> {
     try {
-      await Keychain.resetInternetCredentials(this.KEYCHAIN_SERVICE);
+      console.log('Mock: Clearing credentials from AsyncStorage for development');
+      await AsyncStorage.removeItem(this.CREDENTIALS_KEY);
     } catch (error) {
       console.error('Error clearing credentials:', error);
     }
@@ -263,21 +258,22 @@ class AuthStorageService {
     }
   }
 
-  // Check if Keychain is available (for biometric features)
+  // Check if Keychain is available (for biometric features) - Mock for development
   async isKeychainAvailable(): Promise<boolean> {
     try {
-      const biometryType = await Keychain.getSupportedBiometryType();
-      return biometryType !== null;
+      console.log('Mock: Keychain availability check - returning true for development');
+      return true; // Mock response for development
     } catch (error) {
       console.error('Error checking keychain availability:', error);
       return false;
     }
   }
 
-  // Get supported biometry type
+  // Get supported biometry type - Mock for development
   async getSupportedBiometryType(): Promise<string | null> {
     try {
-      return await Keychain.getSupportedBiometryType();
+      console.log('Mock: Getting biometry type - returning TouchID for development');
+      return 'TouchID'; // Mock response for development
     } catch (error) {
       console.error('Error getting biometry type:', error);
       return null;

@@ -2,9 +2,74 @@
 // Handles all authentication operations with real Firebase integration
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
 import { User } from '../../store/authStore';
+
+// Mock Firebase imports for development - replace with actual imports when Firebase is configured
+const auth = () => ({
+  onAuthStateChanged: (callback: any) => {
+    // Mock auth state listener
+    const unsubscribe = () => {};
+    setTimeout(() => callback(null), 100);
+    return unsubscribe;
+  },
+  createUserWithEmailAndPassword: async (email: string, password: string) => ({
+    user: {
+      uid: `mock-user-${Date.now()}`,
+      email,
+      displayName: null,
+      photoURL: null,
+      phoneNumber: null,
+      metadata: { creationTime: new Date().toISOString() },
+      updateProfile: async (profile: any) => console.log('Mock updateProfile:', profile)
+    }
+  }),
+  signInWithEmailAndPassword: async (email: string, password: string) => ({
+    user: {
+      uid: `mock-user-${Date.now()}`,
+      email,
+      displayName: email.split('@')[0],
+      photoURL: null,
+      phoneNumber: null,
+      metadata: { creationTime: new Date().toISOString() }
+    }
+  }),
+  signInWithPhoneNumber: async (phoneNumber: string) => ({
+    verificationId: `mock-verification-${Date.now()}`
+  }),
+  sendPasswordResetEmail: async (email: string) => {
+    console.log('Mock password reset sent to:', email);
+  },
+  signOut: async () => {
+    console.log('Mock sign out');
+  }
+});
+
+const firestore = () => ({
+  collection: (path: string) => ({
+    doc: (id: string) => ({
+      get: async () => ({ exists: false, data: () => null }),
+      set: async (data: any) => console.log('Mock Firestore set:', path, id, data),
+      update: async (data: any) => console.log('Mock Firestore update:', path, id, data)
+    })
+  }),
+  FieldValue: {
+    serverTimestamp: () => new Date()
+  }
+});
+
+// Mock Firebase Auth Types
+interface FirebaseAuthTypes {
+  User: any;
+}
+
+const PhoneAuthProvider = {
+  credential: (verificationId: string, code: string) => ({
+    verificationId,
+    code
+  })
+};
+
+auth.PhoneAuthProvider = PhoneAuthProvider;
 
 export interface AuthCredentials {
   email?: string;
