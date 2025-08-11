@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../../components/icons/IconRegistry';
 import { useTheme } from '../../store/themeStore';
 import { useNavigation } from '@react-navigation/native';
+import { matchesService, Match as MatchType } from '../../services/matchesService';
 
 interface Match {
   id: string;
@@ -95,15 +96,50 @@ const MatchesScreen: React.FC = () => {
   ];
 
   useEffect(() => {
-    loadMatches();
+    initializeAndLoadMatches();
+    
+    // Subscribe to matches updates
+    const unsubscribe = matchesService.subscribe((updatedMatches) => {
+      // Convert MatchType to Match interface for compatibility
+      const convertedMatches = updatedMatches.map(convertMatchTypeToMatch);
+      setMatches(convertedMatches);
+    });
+    
+    return unsubscribe;
   }, []);
 
-  const loadMatches = () => {
-    // Simulate API call
-    setTimeout(() => {
+  const initializeAndLoadMatches = async () => {
+    await matchesService.initialize();
+    await loadMatches();
+  };
+
+  const convertMatchTypeToMatch = (match: MatchType): Match => {
+    return {
+      id: match.id,
+      userId: match.userId,
+      name: match.name,
+      age: match.age,
+      photos: match.photos,
+      lastMessage: match.lastMessage,
+      matchedAt: match.matchedAt,
+      isNewMatch: match.isNewMatch,
+      isOnline: match.isOnline,
+      unreadCount: match.unreadCount,
+    };
+  };
+
+  const loadMatches = async () => {
+    try {
+      const serviceMatches = matchesService.getMatches();
+      const convertedMatches = serviceMatches.map(convertMatchTypeToMatch);
+      setMatches(convertedMatches);
+    } catch (error) {
+      console.error('Failed to load matches:', error);
+      // Fallback to mock data on error
       setMatches(mockMatches);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const onRefresh = () => {

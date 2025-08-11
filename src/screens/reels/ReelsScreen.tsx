@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../../components/icons/IconRegistry';
 import { useTheme } from '../../store/themeStore';
+import { reelsService, Reel } from '../../services/reelsService';
 
 interface ReelData {
   id: string;
@@ -125,29 +126,103 @@ const ReelsScreen: React.FC = () => {
   ];
 
   useEffect(() => {
-    setReels(mockReels);
+    initializeAndLoadReels();
+    
+    // Subscribe to reels updates
+    const unsubscribe = reelsService.subscribe((updatedReels) => {
+      const convertedReels = updatedReels.map(convertReelToReelData);
+      setReels(convertedReels);
+    });
+    
+    return unsubscribe;
   }, []);
 
-  const handleLike = (reelId: string) => {
-    setReels(prevReels =>
-      prevReels.map(reel =>
-        reel.id === reelId
-          ? {
-              ...reel,
-              isLiked: !reel.isLiked,
-              likes: reel.isLiked ? reel.likes - 1 : reel.likes + 1,
-            }
-          : reel
-      )
-    );
+  const initializeAndLoadReels = async () => {
+    await reelsService.initialize();
+    await loadReels();
+  };
+
+  const convertReelToReelData = (reel: Reel): ReelData => {
+    return {
+      id: reel.id,
+      userId: reel.userId,
+      username: reel.username,
+      userAvatar: reel.userAvatar,
+      videoUrl: reel.videoUrl,
+      thumbnailUrl: reel.thumbnailUrl,
+      description: reel.description,
+      likes: reel.likes,
+      comments: reel.comments,
+      shares: reel.shares,
+      isLiked: reel.isLiked,
+      music: reel.music,
+      hashtags: reel.hashtags,
+      verified: reel.verified,
+    };
+  };
+
+  const loadReels = async () => {
+    try {
+      const serviceReels = reelsService.getReels();
+      if (serviceReels.length === 0) {
+        // Fallback to mock data if no reels in service
+        setReels(mockReels);
+      } else {
+        const convertedReels = serviceReels.map(convertReelToReelData);
+        setReels(convertedReels);
+      }
+    } catch (error) {
+      console.error('Failed to load reels:', error);
+      setReels(mockReels);
+    }
+  };
+
+  const handleLike = async (reelId: string) => {
+    try {
+      const success = await reelsService.toggleLike(reelId, 'current_user_id');
+      if (!success) {
+        // Fallback to local state update if service fails
+        setReels(prevReels =>
+          prevReels.map(reel =>
+            reel.id === reelId
+              ? {
+                  ...reel,
+                  isLiked: !reel.isLiked,
+                  likes: reel.isLiked ? reel.likes - 1 : reel.likes + 1,
+                }
+              : reel
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+    }
   };
 
   const handleComment = (reel: ReelData) => {
-    Alert.alert('Comments', `View comments for ${reel.username}'s reel`);
+    Alert.alert('Comments', `View comments for ${reel.username}'s reel`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'View Comments', onPress: () => navigateToComments(reel.id) },
+    ]);
   };
 
-  const handleShare = (reel: ReelData) => {
-    Alert.alert('Share', `Share ${reel.username}'s reel`);
+  const handleShare = async (reel: ReelData) => {
+    try {
+      const success = await reelsService.shareReel(reel.id);
+      if (success) {
+        Alert.alert('Shared!', `${reel.username}'s reel has been shared!`);
+      } else {
+        Alert.alert('Share', `Share ${reel.username}'s reel`);
+      }
+    } catch (error) {
+      console.error('Failed to share reel:', error);
+      Alert.alert('Share', `Share ${reel.username}'s reel`);
+    }
+  };
+
+  const navigateToComments = (reelId: string) => {
+    // Navigate to comments screen - would be implemented with navigation
+    console.log('Navigate to comments for reel:', reelId);
   };
 
   const handleProfilePress = (reel: ReelData) => {
